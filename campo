@@ -1,0 +1,229 @@
+--[[
+	Menú simple · Auto Aim + Speed
+	2 botones · barra de velocidad sin límite
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+local parent = (gethui and gethui()) or CoreGui
+pcall(function()
+	if parent:FindFirstChild("Menu_AimSpeed") then
+		parent.Menu_AimSpeed:Destroy()
+	end
+end)
+
+local Accent = Color3.fromRGB(255, 40, 180)
+local Bg     = Color3.fromRGB(12, 12, 18)
+local Panel  = Color3.fromRGB(22, 22, 32)
+local Btn    = Color3.fromRGB(32, 32, 48)
+local OnCol  = Color3.fromRGB(0, 170, 100)
+local TextC  = Color3.fromRGB(255, 255, 255)
+local Dim    = Color3.fromRGB(150, 150, 170)
+
+local function corner(o, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r)
+	c.Parent = o
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "Menu_AimSpeed"
+gui.ResetOnSpawn = false
+gui.Parent = parent
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 260, 0, 200)
+main.Position = UDim2.new(0.5, -130, 0.35, 0)
+main.BackgroundColor3 = Bg
+main.BackgroundTransparency = 0.08
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+main.Parent = gui
+corner(main, 14)
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Accent
+stroke.Thickness = 1.5
+stroke.Parent = main
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -16, 0, 32)
+title.Position = UDim2.new(0, 10, 0, 6)
+title.BackgroundTransparency = 1
+title.Text = "◈ Aim + Speed"
+title.TextColor3 = Accent
+title.Font = Enum.Font.GothamBold
+title.TextSize = 15
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+-- Estado
+local aimOn = false
+local speedOn = false
+local speedVal = 30
+
+local function setBtn(btn, on, onT, offT)
+	btn.Text = on and onT or offT
+	btn.BackgroundColor3 = on and OnCol or Btn
+end
+
+-- Botón 1: Auto Aim
+local aimBtn = Instance.new("TextButton")
+aimBtn.Size = UDim2.new(1, -24, 0, 40)
+aimBtn.Position = UDim2.new(0, 12, 0, 42)
+aimBtn.BackgroundColor3 = Btn
+aimBtn.Text = "Auto Aim: OFF"
+aimBtn.TextColor3 = TextC
+aimBtn.Font = Enum.Font.GothamBold
+aimBtn.TextSize = 14
+aimBtn.Parent = main
+corner(aimBtn, 10)
+
+aimBtn.MouseButton1Click:Connect(function()
+	aimOn = not aimOn
+	setBtn(aimBtn, aimOn, "Auto Aim: ON", "Auto Aim: OFF")
+end)
+
+-- Botón 2: Speed
+local speedBtn = Instance.new("TextButton")
+speedBtn.Size = UDim2.new(1, -24, 0, 40)
+speedBtn.Position = UDim2.new(0, 12, 0, 90)
+speedBtn.BackgroundColor3 = Btn
+speedBtn.Text = "Speed: OFF"
+speedBtn.TextColor3 = TextC
+speedBtn.Font = Enum.Font.GothamBold
+speedBtn.TextSize = 14
+speedBtn.Parent = main
+corner(speedBtn, 10)
+
+speedBtn.MouseButton1Click:Connect(function()
+	speedOn = not speedOn
+	setBtn(speedBtn, speedOn, "Speed: ON", "Speed: OFF")
+	if not speedOn then
+		local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if hum then hum.WalkSpeed = 16 end
+	end
+end)
+
+-- Barra de velocidad (sin límite práctico)
+local barBg = Instance.new("Frame")
+barBg.Size = UDim2.new(1, -24, 0, 28)
+barBg.Position = UDim2.new(0, 12, 0, 140)
+barBg.BackgroundColor3 = Panel
+barBg.BorderSizePixel = 0
+barBg.Parent = main
+corner(barBg, 8)
+
+local barFill = Instance.new("Frame")
+barFill.Size = UDim2.new(0.15, 0, 1, 0) -- valor inicial visual
+barFill.BackgroundColor3 = Accent
+barFill.BorderSizePixel = 0
+barFill.Parent = barBg
+corner(barFill, 8)
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, 0, 1, 0)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: 30"
+speedLabel.TextColor3 = TextC
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.TextSize = 13
+speedLabel.ZIndex = 2
+speedLabel.Parent = barBg
+
+-- Caja para escribir cualquier velocidad (sin tope)
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(1, -24, 0, 22)
+speedBox.Position = UDim2.new(0, 12, 0, 172)
+speedBox.BackgroundColor3 = Panel
+speedBox.Text = "30"
+speedBox.PlaceholderText = "Velocidad (sin límite)"
+speedBox.TextColor3 = TextC
+speedBox.Font = Enum.Font.Gotham
+speedBox.TextSize = 12
+speedBox.Parent = main
+corner(speedBox, 6)
+
+local function applySpeedVisual(v)
+	speedVal = math.max(1, v) -- mínimo 1, sin máximo
+	speedBox.Text = tostring(math.floor(speedVal))
+	speedLabel.Text = "Speed: " .. math.floor(speedVal)
+	-- barra solo visual (se llena más hasta ~200, luego se queda llena)
+	local pct = math.clamp(speedVal / 200, 0.05, 1)
+	barFill.Size = UDim2.new(pct, 0, 1, 0)
+end
+
+speedBox.FocusLost:Connect(function()
+	local n = tonumber(speedBox.Text)
+	if n then applySpeedVisual(n) end
+end)
+
+-- Click en la barra para subir/bajar (móvil friendly)
+barBg.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		local rel = (input.Position.X - barBg.AbsolutePosition.X) / barBg.AbsoluteSize.X
+		rel = math.clamp(rel, 0, 1)
+		-- 0 → 16, 1 → 300 (puedes escribir más alto en la caja)
+		applySpeedVisual(16 + rel * 284)
+	end
+end)
+
+-- Helpers
+local function getHRP(p)
+	return p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+end
+local function getHead(p)
+	return p.Character and p.Character:FindFirstChild("Head")
+end
+local function getHum(p)
+	return p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+end
+
+local function closestEnemy()
+	local my = getHRP(LocalPlayer)
+	if not my then return nil end
+	local best, bestD = nil, math.huge
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer and p.Character then
+			local hum = getHum(p)
+			local head = getHead(p)
+			if hum and hum.Health > 0 and head then
+				local d = (head.Position - my.Position).Magnitude
+				if d < bestD then bestD = d best = head end
+			end
+		end
+	end
+	return best
+end
+
+RunService.RenderStepped:Connect(function()
+	if aimOn then
+		local head = closestEnemy()
+		if head then
+			camera.CFrame = CFrame.lookAt(camera.CFrame.Position, head.Position)
+			local my = getHRP(LocalPlayer)
+			if my then
+				local flat = Vector3.new(head.Position.X, my.Position.Y, head.Position.Z)
+				if (flat - my.Position).Magnitude > 0.4 then
+					my.CFrame = CFrame.new(my.Position, flat)
+				end
+			end
+		end
+	end
+
+	if speedOn then
+		local hum = getHum(LocalPlayer)
+		if hum then
+			hum.WalkSpeed = speedVal -- sin clamp máximo
+		end
+	end
+end)
